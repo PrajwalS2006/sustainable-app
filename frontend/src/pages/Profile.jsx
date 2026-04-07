@@ -1,13 +1,13 @@
 // frontend/src/pages/Profile.jsx
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Card, Typography, Avatar, Row, Col, Button, Modal, Form, Input, message, Tag, Space, Divider, Statistic } from 'antd';
+import { Card, Typography, Avatar, Row, Col, Button, Modal, Form, Input, message, Tag, Space, Divider, Statistic, Progress } from 'antd';
 import { 
   UserOutlined, 
   MailOutlined, 
   EditOutlined, 
   LogoutOutlined, 
-  LeafOutlined,
+  EnvironmentOutlined,
   TrophyOutlined,
   ShoppingOutlined,
   CalendarOutlined
@@ -110,7 +110,7 @@ const Profile = () => {
                   title="Current Eco Score"
                   value={ecoScore}
                   suffix="/100"
-                  prefix={<LeafOutlined />}
+                  prefix={<EnvironmentOutlined />}
                   valueStyle={{ color: '#52c41a' }}
                 />
                 <Progress 
@@ -138,10 +138,10 @@ const Profile = () => {
                     <Tag color="gold" icon={<TrophyOutlined />}>Eco Warrior</Tag>
                   )}
                   {ecoScore >= 60 && ecoScore < 80 && (
-                    <Tag color="green" icon={<LeafOutlined />}>Eco Champion</Tag>
+                    <Tag color="green" icon={<EnvironmentOutlined />}>Eco Champion</Tag>
                   )}
                   {ecoScore >= 40 && ecoScore < 60 && (
-                    <Tag color="lime" icon={<LeafOutlined />}>Eco Beginner</Tag>
+                    <Tag color="lime" icon={<EnvironmentOutlined />}>Eco Beginner</Tag>
                   )}
                   {totalItems >= 10 && (
                     <Tag color="blue">10+ Purchases</Tag>

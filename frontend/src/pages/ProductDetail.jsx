@@ -8,7 +8,7 @@ import {
 } from 'antd';
 import { 
   ShoppingCartOutlined, 
-  LeafOutlined, 
+  EnvironmentOutlined as LeafOutlined, 
   DropboxOutlined, 
   ThunderboltOutlined,
   CheckCircleOutlined,
