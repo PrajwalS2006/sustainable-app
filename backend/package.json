@@ -1,13 +1,13 @@
 {
-  "type": "module",
   "name": "sustainable-backend",
   "version": "1.0.0",
   "description": "Backend for Sustainable Consumption App",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon src/server.ts",
+    "dev": "npx ts-node src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed": "npx ts-node src/seed.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

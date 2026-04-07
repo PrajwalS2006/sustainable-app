@@ -11,7 +11,7 @@
     "resolveJsonModule": true,
     "allowJs": true,
     "checkJs": false,
-    "declaration": false,
+    "declaration": true,
     "removeComments": true,
     "noEmitOnError": false,
     "sourceMap": true
