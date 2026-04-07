@@ -1,7 +1,7 @@
 // frontend/src/components/ProductCard.jsx
 import React from 'react';
 import { Card, Button, Typography, Space, Tooltip } from 'antd';
-import { ShoppingCartOutlined, StarOutlined, LeafOutlined } from '@ant-design/icons';
+import { ShoppingCartOutlined, StarOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import EcoScoreBadge from './EcoScoreBadge';
 
@@ -57,7 +57,7 @@ const ProductCard = ({ product, onPurchase }) => {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
           <Space size="small">
-            <LeafOutlined style={{ color: getEcoScoreColor(product.ecoScore) }} />
+            <EnvironmentOutlined style={{ color: getEcoScoreColor(product.ecoScore) }} />
             <Text type="secondary" style={{ fontSize: 12 }}>
               Carbon: {product.carbonFootprint}kg CO₂
             </Text>
