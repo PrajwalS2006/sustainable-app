@@ -174,7 +174,9 @@ const Home = () => {
               <Card 
                 hoverable 
                 style={{ textAlign: 'center', borderRadius: 12, cursor: 'pointer' }}
-                onClick={() => navigate(`/products?category=${category.name.toLowerCase()}`)}
+                onClick={() =>
+                  navigate(`/products?category=${encodeURIComponent(category.name)}`)
+                }
               >
                 <div style={{ fontSize: 32, color: category.color, marginBottom: 12 }}>
                   {category.icon}

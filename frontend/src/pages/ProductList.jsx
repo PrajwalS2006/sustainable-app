@@ -2,9 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
-import { Row, Col, Input, Select, Slider, Button, Card, Space, Typography, Spin, Empty } from 'antd';
+import { Row, Col, Input, Select, Slider, Button, Card, Space, Typography, Spin, Empty, Alert } from 'antd';
 import { SearchOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getProducts } from '../store/slices/productSlice';
+import { getProducts, clearError } from '../store/slices/productSlice';
 import ProductCard from '../components/ProductCard';
 
 const { Title, Text } = Typography;
@@ -13,7 +13,7 @@ const { Option } = Select;
 
 const ProductList = () => {
   const dispatch = useDispatch();
-  const { products, loading } = useSelector((state) => state.products);
+  const { products, loading, error } = useSelector((state) => state.products);
   const { isAuthenticated } = useSelector((state) => state.user);
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -82,6 +82,18 @@ const ProductList = () => {
       <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
         Discover products that help reduce your environmental impact
       </Text>
+
+      {error && (
+        <Alert
+          type="error"
+          showIcon
+          message="Could not load products"
+          description={error}
+          style={{ marginBottom: 24 }}
+          closable
+          onClose={() => dispatch(clearError())}
+        />
+      )}
       
       {/* Search and Filter Bar */}
       <Card style={{ marginBottom: 24, borderRadius: 12 }}>
@@ -179,8 +191,14 @@ const ProductList = () => {
           <Spin size="large" />
         </div>
       ) : filteredProducts.length === 0 ? (
-        <Empty 
-          description="No products found matching your criteria"
+        <Empty
+          description={
+            error
+              ? 'Fix the issue above and refresh the page.'
+              : products.length === 0
+                ? 'No products in the database yet. From the project root, run: npm run seed'
+                : 'No products found matching your criteria'
+          }
           style={{ padding: 48 }}
         />
       ) : (

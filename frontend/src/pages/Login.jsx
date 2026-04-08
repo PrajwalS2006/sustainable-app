@@ -21,7 +21,7 @@ const Login = () => {
       message.success('Login successful! Welcome back!');
       navigate('/');
     } catch (error) {
-      message.error(error.response?.data?.message || 'Login failed. Please try again.');
+      message.error(typeof error === 'string' ? error : 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -34,7 +34,7 @@ const Login = () => {
       message.success('Account created successfully! Welcome to EcoLife!');
       navigate('/');
     } catch (error) {
-      message.error(error.response?.data?.message || 'Signup failed. Please try again.');
+      message.error(typeof error === 'string' ? error : 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }

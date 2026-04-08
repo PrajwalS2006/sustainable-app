@@ -4,6 +4,7 @@ import { Card, Button, Typography, Space, Tooltip } from 'antd';
 import { ShoppingCartOutlined, StarOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import EcoScoreBadge from './EcoScoreBadge';
+import { getProductImage } from '../assets/products';
 
 const { Text, Paragraph } = Typography;
 
@@ -22,7 +23,7 @@ const ProductCard = ({ product, onPurchase }) => {
       cover={
         <img
           alt={product.name}
-          src={product.imageUrl || 'https://via.placeholder.com/300x200?text=Eco+Product'}
+          src={getProductImage(product.name) || product.imageUrl || 'https://via.placeholder.com/300x200?text=Eco+Product'}
           style={{ height: 200, objectFit: 'cover' }}
         />
       }

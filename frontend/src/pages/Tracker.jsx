@@ -33,8 +33,13 @@ const Tracker = () => {
   const carbonSaved = calculateCarbonSaved(ecoScore, totalItems);
   const motivationalMessage = getMotivationalMessage(ecoScore);
 
-  const getProductName = (productId) => {
-    const product = products.find((p) => p._id === productId);
+  const getProductName = (purchase) => {
+    const pid = purchase.productId;
+    if (pid && typeof pid === 'object' && 'name' in pid) {
+      return pid.name;
+    }
+    const id = String(pid);
+    const product = products.find((p) => String(p._id) === id);
     return product ? product.name : 'Eco Product';
   };
 
@@ -138,7 +143,7 @@ const Tracker = () => {
               >
                 <Row justify="space-between" align="middle">
                   <Col>
-                    <Text strong>{getProductName(purchase.productId)}</Text>
+                    <Text strong>{getProductName(purchase)}</Text>
                     <br />
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       {purchase.purchaseDate

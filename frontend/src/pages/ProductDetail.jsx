@@ -18,6 +18,7 @@ import { getProductById } from '../store/slices/productSlice';
 import { purchaseProduct } from '../store/slices/userSlice';
 import EcoScoreBadge from '../components/EcoScoreBadge';
 import TipCard from '../components/TipCard';
+import { getProductImage } from '../assets/products';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -134,7 +135,7 @@ const ProductDetail = () => {
             cover={
               <img 
                 alt={currentProduct.name} 
-                src={currentProduct.imageUrl || 'https://via.placeholder.com/500x400?text=Eco+Product'}
+                src={getProductImage(currentProduct.name) || currentProduct.imageUrl || 'https://via.placeholder.com/500x400?text=Eco+Product'}
                 style={{ borderRadius: '12px 12px 0 0' }}
               />
             }
