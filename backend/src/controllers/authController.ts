@@ -57,7 +57,15 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating user', error });
+    // Common case: duplicate unique indexes (email/username)
+    const maybeAny = error as any;
+    if (maybeAny?.code === 11000) {
+      res.status(400).json({ message: 'User with this email or username already exists' });
+      return;
+    }
+
+    const message = error instanceof Error ? error.message : 'Error creating user';
+    res.status(500).json({ message: 'Error creating user', error: message });
   }
 };
 
@@ -96,6 +104,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error logging in', error });
+    const message = error instanceof Error ? error.message : 'Error logging in';
+    res.status(500).json({ message: 'Error logging in', error: message });
   }
 };

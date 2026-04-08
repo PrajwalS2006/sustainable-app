@@ -1,12 +1,19 @@
-// backend/src/seed.ts
 import mongoose from 'mongoose';
+import path from 'path';
 import dotenv from 'dotenv';
 import Product from './models/productModel';
 import Tip from './models/tipModel';
 import User from './models/userModel';
+import Actor from './models/actorModel';
+import SupplyChainMovement from './models/supplyChainMovementModel';
+import BlockchainLedgerEntry from './models/blockchainLedgerEntryModel';
+import VerificationLog from './models/verificationLogModel';
 import bcrypt from 'bcryptjs';
+import { scoreMovementAnomaly } from './anomaly/anomalyDetector';
+import { sha256ToBytes32Hex, stableStringify } from './utils/hash';
+import { recordMovementOnChain } from './blockchain/blockchainService';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const products = [
   {
@@ -196,9 +203,14 @@ const seedDatabase = async () => {
     console.log('Connected to MongoDB for seeding...');
 
     // Clear existing data
+    // NOTE: SDG7 supply-chain data references Product records, so we clear it too
+    // to avoid orphan movements/graphs after reseeding.
     await Product.deleteMany({});
     await Tip.deleteMany({});
-    console.log('Cleared existing products and tips.');
+    await SupplyChainMovement.deleteMany({});
+    await BlockchainLedgerEntry.deleteMany({});
+    await VerificationLog.deleteMany({});
+    console.log('Cleared existing products, tips, and SDG7 supply-chain collections.');
 
     // Seed products
     await Product.insertMany(products);
@@ -218,10 +230,124 @@ const seedDatabase = async () => {
         password: hashedPassword,
         purchasedProducts: [],
         ecoScore: 0,
+        role: 'admin',
       });
       console.log('Created demo user (demo@ecolife.com / demo123).');
     } else {
-      console.log('Demo user already exists.');
+      // Backfill role in case the user was created before the role field existed.
+      if (!existingUser.role || existingUser.role !== 'admin') {
+        existingUser.role = 'admin';
+        await existingUser.save();
+      }
+      console.log('Demo user already exists (ensured role=admin).');
+    }
+
+    // Seed actors for supply-chain transparency demo.
+    // Admin/operator can use these actors to record movement events.
+    const actorSeed = [
+      { actorType: 'supplier' as const, name: 'GreenSource Materials', location: 'Port District' },
+      { actorType: 'manufacturer' as const, name: 'EcoWeave Manufacturing', location: 'Industrial Park' },
+      { actorType: 'distributor' as const, name: 'PlanetFast Distribution', location: 'Metro Hub' },
+      { actorType: 'consumer' as const, name: 'EcoLife Community Buyers', location: 'Online' },
+    ];
+
+    const actors: Record<string, any> = {};
+    for (const a of actorSeed) {
+      const existing = await Actor.findOne({ actorType: a.actorType, name: a.name });
+      if (!existing) {
+        actors[a.actorType] = await Actor.create(a);
+      } else {
+        actors[a.actorType] = existing;
+      }
+    }
+
+    // Seed a sample movement chain for the first product.
+    // This helps validate supply-chain graph + blockchain verification endpoints.
+    const firstProduct = await Product.findOne({});
+    if (firstProduct) {
+      const alreadySeeded = await SupplyChainMovement.exists({ productId: firstProduct._id });
+      if (!alreadySeeded) {
+        const movementId = new mongoose.Types.ObjectId();
+        const movementUniqueKey = `${firstProduct._id.toString()}:${movementId.toString()}`;
+        const occurredAt = new Date();
+
+        const quantity = 10;
+        const movementType = 'raw_material';
+
+        const canonicalPayload = stableStringify({
+          productId: firstProduct._id.toString(),
+          movementUniqueKey,
+          fromActorId: actors.supplier._id.toString(),
+          toActorId: actors.manufacturer._id.toString(),
+          quantity,
+          movementType,
+          notes: 'Seeded sample movement for SDG7 demo',
+          occurredAt: occurredAt.toISOString(),
+          evidenceUrl: null,
+          evidenceHash: null,
+        });
+
+        const movementHash = sha256ToBytes32Hex(canonicalPayload);
+
+        const anomaly = scoreMovementAnomaly({
+          movement: {
+            quantity,
+            movementType,
+            notes: 'Seeded sample movement for SDG7 demo',
+            occurredAt,
+            evidenceUrl: undefined,
+            evidenceHash: undefined,
+          },
+          fromActorType: actors.supplier.actorType,
+          toActorType: actors.manufacturer.actorType,
+          previousMovementsForProduct: [],
+        });
+
+        const movement = await SupplyChainMovement.create({
+          _id: movementId,
+          productId: firstProduct._id,
+          fromActorId: actors.supplier._id,
+          toActorId: actors.manufacturer._id,
+
+          quantity,
+          movementType,
+          notes: 'Seeded sample movement for SDG7 demo',
+          occurredAt,
+          movementUniqueKey,
+          movementHash,
+
+          evidenceUrl: undefined,
+          evidenceHash: undefined,
+
+          anomalyScore: anomaly.anomalyScore,
+          anomalyReasons: anomaly.anomalyReasons,
+          anomalyFlagged: anomaly.anomalyFlagged,
+          needsReview: anomaly.needsReview,
+
+          isVerifiedOnChain: false,
+        });
+
+        const onChain = await recordMovementOnChain({
+          uniqueKey: movementUniqueKey,
+          movementHash,
+        });
+
+        movement.blockchainTxHash = onChain.txHash;
+        movement.blockchainBlockNumber = onChain.blockNumber;
+        movement.isVerifiedOnChain = onChain.onChainVerified;
+        await movement.save();
+
+        await BlockchainLedgerEntry.create({
+          movementId: movement._id,
+          productId: firstProduct._id,
+          movementUniqueKey,
+          movementHash,
+          txHash: movement.blockchainTxHash || onChain.txHash,
+          blockNumber: movement.blockchainBlockNumber,
+        });
+
+        console.log('Seeded sample supply-chain movement (SDG7).');
+      }
     }
 
     console.log('Database seeding completed successfully!');

@@ -1,29 +1,41 @@
-// backend/src/controllers/productController.ts
 import { Request, Response } from 'express';
 import Product from '../models/productModel';
 import User from '../models/userModel';
 import Tip from '../models/tipModel';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sustainable_secret_key';
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 // Get all products with optional filters
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const { category, minEcoScore, search } = req.query;
-    let filter: any = {};
-    
-    if (category) filter.category = category;
-    if (minEcoScore) filter.ecoScore = { $gte: parseInt(minEcoScore as string) };
-    if (search) {
-      filter.name = { $regex: search, $options: 'i' };
+    const filter: Record<string, unknown> = {};
+
+    if (category) {
+      const cat = String(category);
+      filter.category = { $regex: new RegExp(`^${escapeRegex(cat)}$`, 'i') };
     }
-    
+    if (minEcoScore) {
+      filter.ecoScore = { $gte: parseInt(String(minEcoScore), 10) };
+    }
+    if (search) {
+      filter.name = { $regex: escapeRegex(String(search)), $options: 'i' };
+    }
+
     const products = await Product.find(filter).sort({ ecoScore: -1 });
     res.json(products);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching products', error });
+    console.error('GET PRODUCTS ERROR:', error);
+    res.status(500).json({
+      message: 'Error fetching products',
+      error: getErrorMessage(error),
+    });
   }
 };
 
@@ -37,69 +49,10 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     }
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching product', error });
-  }
-};
-
-// User signup
-export const signup = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { username, email, password } = req.body;
-    
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
-      res.status(400).json({ message: 'User already exists' });
-      return;
-    }
-    
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({
-      username,
-      email,
-      password: hashedPassword,
-      purchasedProducts: [],
-      ecoScore: 0
+    res.status(500).json({
+      message: 'Error fetching product',
+      error: getErrorMessage(error),
     });
-    
-    await user.save();
-    
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: user._id, username, email, ecoScore: 0 } });
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating user', error });
-  }
-};
-
-// User login
-export const login = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body;
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      res.status(401).json({ message: 'Invalid credentials' });
-      return;
-    }
-    
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      res.status(401).json({ message: 'Invalid credentials' });
-      return;
-    }
-    
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        ecoScore: user.ecoScore,
-        purchasedProducts: user.purchasedProducts
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error logging in', error });
   }
 };
 
@@ -107,36 +60,45 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const addPurchase = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, productId, quantity } = req.body;
-    
+
     const user = await User.findById(userId);
     const product = await Product.findById(productId);
-    
+
     if (!user || !product) {
       res.status(404).json({ message: 'User or product not found' });
       return;
     }
-    
-    // Add purchase to user's history
+
     user.purchasedProducts.push({
       productId: product._id,
       purchaseDate: new Date(),
-      quantity: quantity || 1
+      quantity: quantity || 1,
     });
-    
-    // Calculate new eco-score based on product's ecoScore
-    // Eco-score improves with sustainable purchases
-    const totalEcoPoints = user.purchasedProducts.reduce(async (acc, purchase) => {
+
+    let totalPoints = 0;
+    for (const purchase of user.purchasedProducts) {
       const prod = await Product.findById(purchase.productId);
-      return (await acc) + (prod ? prod.ecoScore * purchase.quantity : 0);
-    }, Promise.resolve(0));
-    
-    user.ecoScore = Math.min(100, Math.floor(await totalEcoPoints / user.purchasedProducts.length));
-    
+      if (prod) {
+        totalPoints += prod.ecoScore * purchase.quantity;
+      }
+    }
+
+    const count = user.purchasedProducts.length;
+    user.ecoScore =
+      count > 0 ? Math.min(100, Math.floor(totalPoints / count)) : user.ecoScore;
+
     await user.save();
-    
-    res.json({ message: 'Purchase added successfully', ecoScore: user.ecoScore, purchasedProducts: user.purchasedProducts });
+
+    res.json({
+      message: 'Purchase added successfully',
+      ecoScore: user.ecoScore,
+      purchasedProducts: user.purchasedProducts,
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error adding purchase', error });
+    res.status(500).json({
+      message: 'Error adding purchase',
+      error: getErrorMessage(error),
+    });
   }
 };
 
@@ -148,14 +110,17 @@ export const getUserEcoScore = async (req: Request, res: Response): Promise<void
       res.status(404).json({ message: 'User not found' });
       return;
     }
-    
+
     res.json({
       ecoScore: user.ecoScore,
       totalPurchases: user.purchasedProducts.length,
-      purchaseHistory: user.purchasedProducts
+      purchaseHistory: user.purchasedProducts,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching eco-score', error });
+    res.status(500).json({
+      message: 'Error fetching eco-score',
+      error: getErrorMessage(error),
+    });
   }
 };
 
@@ -165,6 +130,9 @@ export const getTips = async (req: Request, res: Response): Promise<void> => {
     const tips = await Tip.find();
     res.json(tips);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching tips', error });
+    res.status(500).json({
+      message: 'Error fetching tips',
+      error: getErrorMessage(error),
+    });
   }
 };

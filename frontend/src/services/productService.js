@@ -1,7 +1,8 @@
 // frontend/src/services/productService.js
 import axios from 'axios';
+import { getApiBaseUrl } from '../config/apiBaseUrl';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -19,10 +20,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function toQueryString(filters) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    params.append(key, String(value));
+  });
+  return params.toString();
+}
+
 // Product services
 export const fetchProducts = async (filters = {}) => {
-  const params = new URLSearchParams(filters).toString();
-  const response = await api.get(`/products${params ? `?${params}` : ''}`);
+  const qs = toQueryString(filters);
+  const response = await api.get(`/products${qs ? `?${qs}` : ''}`);
   return response.data;
 };
 

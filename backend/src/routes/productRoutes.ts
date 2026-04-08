@@ -1,30 +1,19 @@
-// backend/src/routes/productRoutes.ts
 import { Router } from 'express';
 import {
   getProducts,
   getProductById,
-  signup,
-  login,
   addPurchase,
   getUserEcoScore,
-  getTips
+  getTips,
 } from '../controllers/productController';
 
 const router = Router();
 
-// Product routes
+// Static paths must be registered before `/:id` so they are not captured as IDs.
 router.get('/', getProducts);
-router.get('/:id', getProductById);
-
-// Auth routes
-router.post('/auth/signup', signup);
-router.post('/auth/login', login);
-
-// User purchase routes
 router.post('/purchase', addPurchase);
-router.get('/user/:userId/eco-score', getUserEcoScore);
-
-// Tips routes
 router.get('/tips/all', getTips);
+router.get('/user/:userId/eco-score', getUserEcoScore);
+router.get('/:id', getProductById);
 
 export default router;
